@@ -99,6 +99,64 @@ console.log(error('Error!'));
 console.log(warning('Warning!'));
 ```
 
+### chalk.theme(theme)
+
+Define a reusable theme by mapping semantic names to dot-separated Chalk style chains. Each value in the returned object behaves like a chained Chalk style, so they accept strings as input and can be further chained with other styles.
+
+```js
+import chalk from 'chalk';
+
+const theme = chalk.theme({
+	success: 'green.bold',
+	error: 'red.bold',
+	warning: 'yellow.bold',
+	info: 'cyan',
+	title: 'blue.bold.underline',
+});
+
+console.log(theme.success('Operation completed'));
+console.log(theme.error('Something went wrong'));
+console.log(theme.warning('Be careful'));
+console.log(theme.info('Server started'));
+console.log(theme.title('My Application'));
+```
+
+A theme entry is a normal builder, so the existing chaining rules apply:
+
+```js
+import chalk from 'chalk';
+
+const theme = chalk.theme({success: 'green'});
+
+// Further chain theme entries like any other builder:
+console.log(theme.success.underline('still a success'));
+
+// Calling a theme entry with multiple arguments joins them with a space:
+console.log(theme.info('Server', 'started', 'on', 'port', '3000'));
+
+// Reading `.level` from a theme entry follows the underlying instance:
+console.log(theme.success.level);
+```
+
+Themes are isolated — creating one does not cache anything on the originating Chalk instance, so you can freely intermix theme calls and ordinary chained styling:
+
+```js
+import chalk from 'chalk';
+
+chalk.theme({success: 'green.bold'});
+
+// Existing chalk behavior is preserved.
+console.log(chalk.green('Hello'));
+console.log(chalk.red.bold('World'));
+```
+
+Throws a clear error for unknown style names:
+
+```js
+chalk.theme({foo: 'notARealStyle'});
+//=> Error: Invalid Chalk style "notARealStyle" in theme chain "notARealStyle"
+```
+
 Take advantage of console.log [string substitution](https://nodejs.org/docs/latest/api/console.html#console_console_log_data_args):
 
 ```js

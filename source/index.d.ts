@@ -332,6 +332,31 @@ export interface ChalkInstance {
 	readonly underlineMagentaBright: this;
 	readonly underlineCyanBright: this;
 	readonly underlineWhiteBright: this;
+
+	/**
+	Define a reusable theme by mapping semantic names to dot-separated Chalk style chains.
+
+	Each value in the returned object is a builder that supports the same call interface as a chained Chalk style (e.g. `theme.success('text')`, `theme.success.bold('text')`), so themes compose with the rest of the API and reuse the same Builder/Styler architecture.
+
+	@example
+	```
+	import chalk from 'chalk';
+
+	const theme = chalk.theme({
+		success: 'green.bold',
+		error: 'red.bold',
+		warning: 'yellow.bold',
+		info: 'cyan',
+		title: 'blue.bold.underline',
+	});
+
+	console.log(theme.success('Operation completed'));
+	console.log(theme.error('Something went wrong'));
+	```
+	*/
+	theme: <T extends Record<string, string>>(
+		theme: {[K in keyof T]: string},
+	) => {[K in keyof T]: ChalkInstance};
 }
 
 /**

@@ -236,6 +236,60 @@ const applyStyle = (self, string) => {
 // eslint-disable-next-line unicorn/no-top-level-side-effects -- The style getters must be installed at module load.
 Object.defineProperties(createChalk.prototype, {...styles, level: levelDescriptor});
 
+// Walk a dot-separated chain against the set of named Chalk styles and build the equivalent chain manually with `createBuilder`. Going through the prototype getters would cache each step on `this` and thereby mutate the original Chalk instance the theme was created from; building manually keeps the theme fully isolated and reusable.
+const resolveThemeChain = (chalk, chain) => {
+	if (typeof chain !== 'string' || chain.length === 0) {
+		throw new TypeError('Theme style chain must be a non-empty string');
+	}
+
+	const parts = chain.split('.');
+	let builder = chalk;
+	for (const styleName of parts) {
+		// `visible` is the only named style that has no entry in `ansiStyles` — it is implemented by flipping the builder's `IS_EMPTY` flag so the styled text only appears when color is enabled.
+		const isVisible = styleName === 'visible';
+		if (styleName.length === 0 || (!isVisible && !Object.hasOwn(ansiStyles, styleName))) {
+			throw new Error(`Invalid Chalk style "${styleName}" in theme chain "${chain}"`);
+		}
+
+		if (isVisible) {
+			builder = createBuilder(builder, builder[STYLER], true);
+			continue;
+		}
+
+		const style = ansiStyles[styleName];
+		builder = createBuilder(
+			builder,
+			createStyler(style.open, style.close, builder[STYLER]),
+			builder[IS_EMPTY],
+		);
+	}
+
+	return builder;
+};
+
+// Define a reusable theme by mapping semantic names to dot-separated Chalk style chains. Each value in the returned object is a builder that supports the same call interface as a chained Chalk style (e.g. `theme.success('text')`, `theme.success.bold('text')`), so themes compose with the existing API.
+const themeDescriptor = {
+	value(definition) {
+		if (definition === null || typeof definition !== 'object') {
+			throw new TypeError('The `theme` argument must be an object mapping names to dot-separated style chains');
+		}
+
+		const theme = {};
+		for (const [name, chain] of Object.entries(definition)) {
+			theme[name] = resolveThemeChain(this, chain);
+		}
+
+		return theme;
+	},
+	enumerable: true,
+};
+
+// Install on the builder prototype (so any chain can derive a theme) and on the root prototype (so `chalk.theme(...)` works as documented).
+// eslint-disable-next-line unicorn/no-top-level-side-effects -- The theme method must be installed at module load.
+Object.defineProperty(proto, 'theme', themeDescriptor);
+// eslint-disable-next-line unicorn/no-top-level-side-effects -- The theme method must be installed at module load.
+Object.defineProperty(createChalk.prototype, 'theme', themeDescriptor);
+
 const chalk = createChalk();
 export const chalkStderr = createChalk({level: stderrColor ? stderrColor.level : 0});
 
